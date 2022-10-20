@@ -23,7 +23,7 @@ analyzer:
     - "bin/cache/**"
     # Ignore protoc generated files
     - "dev/conductor/lib/proto/*"
-  rules:
-    public_member_api_docs: false
 
 linter:
+  rules:
+    public_member_api_docs: false
