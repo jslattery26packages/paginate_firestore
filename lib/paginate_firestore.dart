@@ -41,6 +41,8 @@ class PaginateFirestore extends StatefulWidget {
     this.listeners,
     this.prefixDocuments,
     this.scrollController,
+    this.allowImplicitScrolling = false,
+    this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.manual,
     this.pageController,
     this.onPageChanged,
     this.header,
@@ -61,6 +63,8 @@ class PaginateFirestore extends StatefulWidget {
   final Query query;
   final bool reverse;
   final List<DocumentSnapshot>? prefixDocuments;
+  final bool allowImplicitScrolling;
+  final ScrollViewKeyboardDismissBehavior keyboardDismissBehavior;
   final ScrollController? scrollController;
   final PageController? pageController;
   final Axis scrollDirection;
@@ -95,11 +99,13 @@ class _PaginateFirestoreState extends State<PaginateFirestore> {
       bloc: _cubit,
       builder: (context, state) {
         if (state is PaginationInitial) {
-          return widget.initialLoader;
+          return _buildWithScrollView(context, widget.initialLoader);
         } else if (state is PaginationError) {
-          return (widget.onError != null)
-              ? widget.onError!(state.error)
-              : ErrorDisplay(exception: state.error);
+          return _buildWithScrollView(
+              context,
+              (widget.onError != null)
+                  ? widget.onError!(state.error)
+                  : ErrorDisplay(exception: state.error));
         } else {
           final loadedState = state as PaginationLoaded;
           if (widget.onLoaded != null) {
@@ -137,6 +143,16 @@ class _PaginateFirestoreState extends State<PaginateFirestore> {
                           : _buildAdPageView(loadedState);
         }
       },
+    );
+  }
+
+  Widget _buildWithScrollView(BuildContext context, Widget child) {
+    return SingleChildScrollView(
+      child: Container(
+        alignment: Alignment.center,
+        height: MediaQuery.of(context).size.height,
+        child: child,
+      ),
     );
   }
 
@@ -183,6 +199,7 @@ class _PaginateFirestoreState extends State<PaginateFirestore> {
       shrinkWrap: widget.shrinkWrap,
       scrollDirection: widget.scrollDirection,
       physics: widget.physics,
+      keyboardDismissBehavior: widget.keyboardDismissBehavior,
       slivers: [
         if (widget.header != null) SliverToBoxAdapter(child: widget.header!),
         SliverPadding(
@@ -229,6 +246,7 @@ class _PaginateFirestoreState extends State<PaginateFirestore> {
       shrinkWrap: widget.shrinkWrap,
       scrollDirection: widget.scrollDirection,
       physics: widget.physics,
+      keyboardDismissBehavior: widget.keyboardDismissBehavior,
       slivers: [
         if (widget.header != null) SliverToBoxAdapter(child: widget.header!),
         SliverPadding(
