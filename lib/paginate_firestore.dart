@@ -36,7 +36,6 @@ class PaginateFirestore extends StatefulWidget {
     this.shrinkWrap = false,
     this.reverse = false,
     this.scrollDirection = Axis.vertical,
-    this.blockedList = const [],
     this.padding = const EdgeInsets.all(0),
     this.physics,
     this.listeners,
@@ -63,7 +62,6 @@ class PaginateFirestore extends StatefulWidget {
   final ScrollPhysics? physics;
   final Query query;
   final bool reverse;
-  final List<dynamic> blockedList;
   final List<DocumentSnapshot>? prefixDocuments;
   final bool allowImplicitScrolling;
   final ScrollViewKeyboardDismissBehavior keyboardDismissBehavior;
@@ -181,8 +179,6 @@ class _PaginateFirestoreState extends State<PaginateFirestore> {
               _cubit!.filterPaginatedList(listener.searchTerm);
             }
           });
-        } else if (widget.blockedList.isNotEmpty) {
-          _cubit!.cleanPaginatedList(widget.blockedList);
         }
       }
     }
