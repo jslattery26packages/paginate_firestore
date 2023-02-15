@@ -42,6 +42,23 @@ class PaginationCubit extends Cubit<PaginationState> {
     }
   }
 
+  void cleanPaginatedList(List<dynamic> blockedList) {
+    if (state is PaginationLoaded) {
+      final loadedState = state as PaginationLoaded;
+
+      final filteredList = loadedState.documentSnapshots
+          // ignore: lines_longer_than_80_chars
+          .where((document) => !blockedList
+              .contains((document.data()! as Map<String, dynamic>)['ownerUid']))
+          .toList();
+
+      emit(loadedState.copyWith(
+        documentSnapshots: filteredList,
+        hasReachedEnd: loadedState.hasReachedEnd,
+      ));
+    }
+  }
+
   void refreshPaginatedList() async {
     _lastDocument = null;
     final localQuery = _getQuery();
