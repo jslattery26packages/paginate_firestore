@@ -1,29 +1,38 @@
-include: package:effective_dart/analysis_options.yaml
+include: package:flutter_lints/flutter.yaml
 
 analyzer:
-  # strong-mode:
-  # implicit-casts: false
-  # implicit-dynamic: false
-  errors:
-    # treat missing required parameters as a warning (not a hint)
-    # missing_required_param: warning
-    # treat missing returns as a warning (not a hint)
-    # missing_return: warning
-    # allow having TODO comments in the code
-    # todo: ignore
-    # allow self-reference to deprecated members (we do this because otherwise we have
-    # to annotate every member in every test, assert, etc, when we deprecate something)
-    deprecated_member_use_from_same_package: ignore
-    # TODO(ianh): https://github.com/flutter/flutter/issues/74381
-    # Clean up existing unnecessary imports, and remove line to ignore.
-    unnecessary_import: ignore
-    # Turned off until null-safe rollout is complete.
-    unnecessary_null_comparison: ignore
+  enable-experiment:
+    - records
+    - patterns
+  plugins:
+    - custom_lint
   exclude:
-    - "bin/cache/**"
-    # Ignore protoc generated files
-    - "dev/conductor/lib/proto/*"
+    - lib/**.g.dart
+    - lib/**.freezed.dart
+
+custom_lint:
+  rules:
+    - missing_provider_scope: false
 
 linter:
   rules:
-    public_member_api_docs: false
+    file_names: false
+    prefer_single_quotes: true
+    avoid_empty_else: true
+    avoid_relative_lib_imports: true
+    avoid_returning_null_for_future: true
+    require_trailing_commas: true
+    join_return_with_assignment: true
+    prefer_interpolation_to_compose_strings: true
+    prefer_null_aware_method_calls: true
+    sized_box_shrink_expand: true
+    unnecessary_await_in_return: true
+    unnecessary_lambdas: true
+    unnecessary_null_checks: true
+    use_decorated_box: true
+    use_if_null_to_convert_nulls_to_bools: true
+    use_named_constants: true
+    use_late_for_private_fields_and_variables: true
+    library_private_types_in_public_api: true
+    depend_on_referenced_packages: false
+    use_build_context_synchronously: false

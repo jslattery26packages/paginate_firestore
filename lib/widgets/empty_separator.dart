@@ -5,6 +5,6 @@ class EmptySeparator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(height: 0, width: 0);
+    return const SizedBox.shrink();
   }
 }

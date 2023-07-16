@@ -28,17 +28,21 @@ class PaginationCubit extends Cubit<PaginationState> {
       final loadedState = state as PaginationLoaded;
 
       final filteredList = loadedState.documentSnapshots
-          .where((document) => document
-              .data()
-              .toString()
-              .toLowerCase()
-              .contains(searchTerm.toLowerCase()))
+          .where(
+            (document) => document
+                .data()
+                .toString()
+                .toLowerCase()
+                .contains(searchTerm.toLowerCase()),
+          )
           .toList();
 
-      emit(loadedState.copyWith(
-        documentSnapshots: filteredList,
-        hasReachedEnd: loadedState.hasReachedEnd,
-      ));
+      emit(
+        loadedState.copyWith(
+          documentSnapshots: filteredList,
+          hasReachedEnd: loadedState.hasReachedEnd,
+        ),
+      );
     }
   }
 
@@ -48,14 +52,19 @@ class PaginationCubit extends Cubit<PaginationState> {
 
       final filteredList = loadedState.documentSnapshots
           // ignore: lines_longer_than_80_chars
-          .where((document) => !blockedList
-              .contains((document.data()! as Map<String, dynamic>)['ownerUid']))
+          .where(
+            (document) => !blockedList.contains(
+              (document.data()! as Map<String, dynamic>)['ownerUid'],
+            ),
+          )
           .toList();
 
-      emit(loadedState.copyWith(
-        documentSnapshots: filteredList,
-        hasReachedEnd: loadedState.hasReachedEnd,
-      ));
+      emit(
+        loadedState.copyWith(
+          documentSnapshots: filteredList,
+          hasReachedEnd: loadedState.hasReachedEnd,
+        ),
+      );
     }
   }
 
@@ -94,7 +103,7 @@ class PaginationCubit extends Cubit<PaginationState> {
         );
       }
     } on PlatformException catch (exception) {
-      print(exception);
+      debugPrint(exception.toString());
       rethrow;
     }
   }
@@ -123,10 +132,12 @@ class PaginationCubit extends Cubit<PaginationState> {
     List<QueryDocumentSnapshot> previousList = const [],
   }) {
     _lastDocument = newList.isNotEmpty ? newList.last : null;
-    emit(PaginationLoaded(
-      documentSnapshots: previousList + newList,
-      hasReachedEnd: newList.isEmpty,
-    ));
+    emit(
+      PaginationLoaded(
+        documentSnapshots: previousList + newList,
+        hasReachedEnd: newList.isEmpty,
+      ),
+    );
   }
 
   Query _getQuery() {
@@ -135,8 +146,7 @@ class PaginationCubit extends Cubit<PaginationState> {
         : _startAfterDocument != null
             ? _query.startAfterDocument(_startAfterDocument!)
             : _query;
-    localQuery = localQuery.limit(_limit);
-    return localQuery;
+    return localQuery.limit(_limit);
   }
 
   void dispose() {
