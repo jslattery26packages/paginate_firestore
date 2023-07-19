@@ -6,9 +6,9 @@ analyzer:
     - patterns
   plugins:
     - custom_lint
-  exclude:
-    - lib/**.g.dart
-    - lib/**.freezed.dart
+  # exclude:
+  #   - lib/**.g.dart
+  #   - lib/**.freezed.dart
 
 custom_lint:
   rules:

@@ -2,23 +2,23 @@ library paginate_firestore;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:paginate_firestore/pagination/pagination_notifier.dart';
+import 'package:paginate_firestore/pagination/pagination_params_notifier.dart';
+import 'package:paginate_firestore/pagination/pagination_state.dart';
 import 'package:paginate_firestore/widgets/types/grid_view.dart';
 import 'package:paginate_firestore/widgets/types/list_view.dart';
 import 'package:paginate_firestore/widgets/types/page_view.dart';
 import 'package:paginate_firestore/widgets/types/page_view_separated.dart';
 import 'package:paginate_firestore/widgets/types/page_view_start_after.dart';
-import 'package:provider/provider.dart';
 
-import 'bloc/pagination_cubit.dart';
-import 'bloc/pagination_listeners.dart';
 import 'widgets/bottom_loader.dart';
 import 'widgets/empty_display.dart';
 import 'widgets/empty_separator.dart';
 import 'widgets/error_display.dart';
 import 'widgets/initial_loader.dart';
 
-class PaginateFirestore extends StatefulWidget {
+class PaginateFirestore extends StatefulHookConsumerWidget {
   const PaginateFirestore({
     Key? key,
     required this.itemBuilder,
@@ -52,22 +52,22 @@ class PaginateFirestore extends StatefulWidget {
     this.footer,
     this.isLive = false,
   })  : assert(
-          itemBuilderType != PaginateBuilderType.pageViewSeparated ||
+          itemBuilderType != PaginateType.pageViewSeparated ||
               separatorEveryAmount > 0,
         ),
-        assert(
-          (itemBuilderType == PaginateBuilderType.pageViewStartAfter &&
-                  prefixDocuments != null &&
-                  prefixDocuments.length > 0) ||
-              itemBuilderType != PaginateBuilderType.pageViewStartAfter,
-        ),
+        // assert(
+        //   (itemBuilderType == PaginateType.pageViewStartAfter &&
+        //           prefixDocuments != null &&
+        //           prefixDocuments.length > 0) ||
+        //       itemBuilderType != PaginateType.pageViewStartAfter,
+        // ),
         super(key: key);
 
   final Widget bottomLoader;
   final Widget emptyDisplay;
   final SliverGridDelegate gridDelegate;
   final Widget initialLoader;
-  final PaginateBuilderType itemBuilderType;
+  final PaginateType itemBuilderType;
   final int itemsPerPage;
   final int separatorEveryAmount;
   final List<ChangeNotifier>? listeners;
@@ -88,172 +88,118 @@ class PaginateFirestore extends StatefulWidget {
   final Widget? header;
   final Widget? footer;
 
-  @override
-  PaginateFirestoreState createState() => PaginateFirestoreState();
-
   final Widget Function(Exception)? onError;
 
   final Widget Function(int, BuildContext, dynamic) itemBuilder;
 
-  final void Function(PaginationLoaded)? onReachedEnd;
+  final void Function(PaginationState)? onReachedEnd;
 
-  final void Function(PaginationLoaded)? onLoaded;
+  final void Function(PaginationState)? onLoaded;
 
   final void Function(int)? onPageChanged;
+
+  @override
+  ConsumerState<ConsumerStatefulWidget> createState() =>
+      _PaginateFirestoreRiverpodState();
 }
 
-class PaginateFirestoreState extends State<PaginateFirestore> {
-  PaginationCubit? _cubit;
-
-  @override
-  Widget build(BuildContext context) {
-    var once = false;
-    return BlocBuilder<PaginationCubit, PaginationState>(
-      bloc: _cubit,
-      builder: (context, state) {
-        if (state is PaginationInitial) {
-          return _buildWithScrollView(context, widget.initialLoader);
-        } else if (state is PaginationError) {
-          return _buildWithScrollView(
-            context,
-            (widget.onError != null)
-                ? widget.onError!(state.error)
-                : ErrorDisplay(exception: state.error),
-          );
-        } else {
-          final loadedState = state as PaginationLoaded;
-          if (widget.onLoaded != null) {
-            widget.onLoaded?.call(loadedState);
-          }
-          if (loadedState.hasReachedEnd && widget.onReachedEnd != null) {
-            widget.onReachedEnd!(loadedState);
-          }
-
-          if (loadedState.documentSnapshots.isEmpty) {
-            return Column(
-              mainAxisAlignment: widget.header == null
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
-              children: [
-                if (widget.header != null) widget.header!,
-                Center(child: widget.emptyDisplay),
-              ],
-            );
-          }
-          if (widget.prefixDocuments != null && !once) {
-            loadedState.documentSnapshots.insertAll(0, widget.prefixDocuments!);
-            once = true;
-          }
-          return _buildView(loadedState, widget.itemBuilderType);
-        }
-      },
-    );
-  }
-
-  Widget _buildWithScrollView(BuildContext context, Widget child) {
-    return SingleChildScrollView(
-      child: Container(
-        alignment: Alignment.center,
-        height: MediaQuery.of(context).size.height,
-        child: child,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    widget.scrollController?.dispose();
-    _cubit?.dispose();
-    super.dispose();
-  }
-
+class _PaginateFirestoreRiverpodState extends ConsumerState<PaginateFirestore> {
   @override
   void initState() {
-    if (widget.listeners != null) {
-      for (var listener in widget.listeners!) {
-        if (listener is PaginateRefreshedChangeListener) {
-          listener.addListener(() {
-            if (listener.refreshed) {
-              _cubit!.refreshPaginatedList();
-            }
-          });
-        } else if (listener is PaginateFilterChangeListener) {
-          listener.addListener(() {
-            if (listener.searchTerm.isNotEmpty) {
-              _cubit!.filterPaginatedList(listener.searchTerm);
-            }
-          });
-        }
-      }
-    }
-
-    _cubit = PaginationCubit(
-      widget.query,
-      widget.itemsPerPage,
-      widget.startAfterDocument,
-      isLive: widget.isLive,
-    )..fetchPaginatedList();
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      ref.read(paginationParamsNotifierProvider.notifier).setParams(
+            NotifierParams(
+              query: widget.query,
+              limit: widget.itemsPerPage,
+              isLive: widget.isLive,
+              startAfterDocument: widget.startAfterDocument,
+              prefixDocuments: widget.prefixDocuments,
+            ),
+          );
+      ref.read(paginationNotifierProvider.notifier).fetchPaginatedList();
+    });
     super.initState();
   }
 
-  Widget _buildView(PaginationLoaded loadedState, PaginateBuilderType type) {
-    Widget view;
-    switch (widget.itemBuilderType) {
-      case PaginateBuilderType.listView:
-        view = ListViewPaginated(
-          loadedState: loadedState,
-          cubit: _cubit,
-          widget: widget,
-        );
-        break;
-      case PaginateBuilderType.gridView:
-        view = GridViewPaginated(
-          loadedState: loadedState,
-          cubit: _cubit,
-          widget: widget,
-        );
-        break;
-      case PaginateBuilderType.pageView:
-        view = PageViewPaginated(
-          loadedState: loadedState,
-          cubit: _cubit,
-          widget: widget,
-        );
-        break;
-      case PaginateBuilderType.pageViewSeparated:
-        view = PageViewPaginatedSeparated(
-          loadedState: loadedState,
-          cubit: _cubit,
-          widget: widget,
-        );
-        break;
-      case PaginateBuilderType.pageViewStartAfter:
-        view = PageViewStartAfter(
-          loadedState: loadedState,
-          cubit: _cubit,
-          widget: widget,
-        );
-        break;
-    }
-
-    if (widget.listeners != null && widget.listeners!.isNotEmpty) {
-      return MultiProvider(
-        providers: widget.listeners!
-            .map(
-              (listener) => ChangeNotifierProvider(
-                create: (context) => listener,
-              ),
-            )
-            .toList(),
-        child: view,
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(paginationNotifierProvider);
+    Widget buildWithScrollView(BuildContext context, Widget child) {
+      return SingleChildScrollView(
+        child: Container(
+          alignment: Alignment.center,
+          height: MediaQuery.of(context).size.height,
+          child: child,
+        ),
       );
     }
 
-    return view;
+    Widget buildView(PaginationState state, PaginateType type) {
+      switch (widget.itemBuilderType) {
+        case PaginateType.listView:
+          return ListViewPaginated(
+            widget: widget,
+          );
+        case PaginateType.gridView:
+          return GridViewPaginated(
+            widget: widget,
+          );
+        case PaginateType.pageView:
+          return PageViewPaginated(
+            widget: widget,
+          );
+        case PaginateType.pageViewSeparated:
+          return PageViewPaginatedSeparated(
+            widget: widget,
+          );
+        case PaginateType.pageViewStartAfter:
+          return PageViewStartAfter(
+            widget: widget,
+          );
+      }
+    }
+
+    ref.listen<PaginationState>(paginationNotifierProvider, (previous, next) {
+      // * Don't call before build is done
+      if (previous != null &&
+          !next.addedPrefixDocs &&
+          widget.prefixDocuments != null) {}
+    });
+    var once = false;
+    if (state.status == Status.initial) {
+      return buildWithScrollView(context, widget.initialLoader);
+    } else if (state.status == Status.error) {
+      return buildWithScrollView(
+        context,
+        (widget.onError != null)
+            ? widget.onError!(state.error!)
+            : ErrorDisplay(exception: state.error!),
+      );
+    } else {
+      if (widget.onLoaded != null) {
+        widget.onLoaded?.call(state);
+      }
+      if (state.hasReachedEnd && widget.onReachedEnd != null) {
+        widget.onReachedEnd!(state);
+      }
+      if (state.documentSnapshots.isEmpty) {
+        return Column(
+          mainAxisAlignment: widget.header == null
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
+          children: [
+            if (widget.header != null) widget.header!,
+            Center(child: widget.emptyDisplay),
+          ],
+        );
+      }
+
+      return buildView(state, widget.itemBuilderType);
+    }
   }
 }
 
-enum PaginateBuilderType {
+enum PaginateType {
   listView,
   gridView,
   pageView,

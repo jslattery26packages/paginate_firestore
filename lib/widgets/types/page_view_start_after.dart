@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:paginate_firestore/bloc/pagination_cubit.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:paginate_firestore/paginate_firestore.dart';
+import 'package:paginate_firestore/pagination/pagination_notifier.dart';
 
-class PageViewStartAfter extends StatelessWidget {
+class PageViewStartAfter extends HookConsumerWidget {
   const PageViewStartAfter({
     Key? key,
-    required this.loadedState,
     required this.widget,
-    required this.cubit,
   }) : super(key: key);
 
-  final PaginationLoaded loadedState;
   final PaginateFirestore widget;
-  final PaginationCubit? cubit;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(paginationNotifierProvider);
+    final notifier = ref.watch(paginationNotifierProvider.notifier);
+
     return CustomScrollView(
       reverse: widget.reverse,
       shrinkWrap: widget.shrinkWrap,
@@ -32,19 +32,19 @@ class PageViewStartAfter extends StatelessWidget {
               controller: widget.pageController,
               childrenDelegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  if (index >= loadedState.documentSnapshots.length) {
-                    cubit!.fetchPaginatedList();
+                  if (index >= state.documentSnapshots.length) {
+                    notifier.fetchPaginatedList();
                     return widget.bottomLoader;
                   }
                   return widget.itemBuilder(
                     index,
                     context,
-                    loadedState.documentSnapshots[index],
+                    state.documentSnapshots[index],
                   );
                 },
-                childCount: loadedState.hasReachedEnd
-                    ? loadedState.documentSnapshots.length
-                    : loadedState.documentSnapshots.length + 1,
+                childCount: state.hasReachedEnd
+                    ? state.documentSnapshots.length
+                    : state.documentSnapshots.length + 1,
               ),
             ),
           ),

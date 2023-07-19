@@ -2,10 +2,11 @@ import 'package:example/firebase_options.dart';
 import 'package:example/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:paginate_firestore/paginate_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:paginate_firestore/widgets/empty_separator.dart';
+import 'package:paginate_firestore/paginate_firestore.dart';
 
 late CollectionReference<User> collection;
 
@@ -13,13 +14,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  final collectionRef = FirebaseFirestore.instance.collection('users');
-
-  collection = collectionRef.withConverter<User>(
-    fromFirestore: (snapshot, _) => User.fromJson(snapshot.data()!),
-    toFirestore: (user, _) => user.toJson(),
+  runApp(
+    UncontrolledProviderScope(
+      container: ProviderContainer(),
+      child: MyApp(),
+    ),
   );
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -44,10 +44,13 @@ class HomePage extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = useState<PaginateBuilderType>(PaginateBuilderType.gridView);
-    final options = List<PaginateBuilderType>.from(PaginateBuilderType.values);
+    final pageController = usePageController(keepPage: true);
+    final scrollConroller = useScrollController(keepScrollOffset: true);
+    final type = useState<PaginateType>(PaginateType.gridView);
+    final options = List<PaginateType>.from(PaginateType.values);
     List<DocumentSnapshot> saveAsYouLoad = [];
-    options.remove(PaginateBuilderType.pageViewStartAfter);
+    //* For example we don't want to show the startAfter option
+    options.remove(PaginateType.pageViewStartAfter);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Firestore pagination example'),
@@ -55,7 +58,7 @@ class HomePage extends HookWidget {
       ),
       body: Column(
         children: [
-          DropdownButtonFormField<PaginateBuilderType>(
+          DropdownButtonFormField<PaginateType>(
             value: type.value,
             items: options
                 .map((e) => DropdownMenuItem(
@@ -67,14 +70,18 @@ class HomePage extends HookWidget {
           ),
           Expanded(
             child: PaginateFirestore(
-              itemsPerPage: 20,
+              scrollController: scrollConroller,
+              pageController: pageController,
+              itemsPerPage: 9,
               itemBuilderType: type.value,
               onLoaded: (loaded) {
-                // * Everytime you paginate more, save the document snapshots
+                // * Everytime you paginate more, save the document snapshotss
                 saveAsYouLoad = loaded.documentSnapshots;
               },
+              gridDelegate:
+                  SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
               separatorEveryAmount: 3,
-              separator: type.value == PaginateBuilderType.pageViewSeparated
+              separator: type.value == PaginateType.pageViewSeparated
                   ? Container(
                       color: Colors.brown,
                       child: const Center(
@@ -85,38 +92,43 @@ class HomePage extends HookWidget {
               itemBuilder: (index, context, documentSnapshot) {
                 final data = documentSnapshot.data();
                 final user = User.fromJson(data!);
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.person)),
-                  title: data == null
-                      ? const Text('Error in data')
-                      : Text(user.firstName),
-                  subtitle: Text(documentSnapshot.id),
-                  onTap: () {
-                    //* When you want to go into a detail
-                    //* Send the loaded docs to a "pageViewStartAfter"
+                return Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.person)),
+                      title: data == null
+                          ? const Text('Error in data')
+                          : Text(user.firstName),
+                      subtitle: Text(documentSnapshot.id),
+                      onTap: () {
+                        //* When you want to go into a detail
+                        //* Send the loaded docs to a "pageViewStartAfter"
 
-                    //* This line checks if the user scrolls, loads, loads, loads,
-                    //  * but then they can also scroll back up (we need their current index);
-                    final docsLoaded =
-                        saveAsYouLoad.getRange(0, index).toList();
-                    //* We need to tell the query to start after the last document loaded
-                    var startAfter =
-                        index == 0 ? null : saveAsYouLoad[index - 1];
+                        //* This line checks if the user scrolls, loads, loads, loads,
+                        //  * but then they can also scroll back up (we need their current index);
 
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (builder) {
-                          return DetailsScreenWithPositionSaved(
-                            // * Send index to start page controller on the correct thing
-                            index: index,
-                            prefixDocuments: docsLoaded,
-                            startAfter: startAfter,
-                          );
-                        },
-                      ),
-                    );
-                  },
+                        final docsLoaded =
+                            saveAsYouLoad.getRange(0, index).toList();
+                        //* We need to tell the query to start after the last document loaded
+                        var startAfter =
+                            index == 0 ? null : saveAsYouLoad[index - 1];
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (builder) {
+                              return DetailsScreenWithPositionSaved(
+                                // * Send index to start page controller on the correct thing
+                                index: index,
+                                prefixDocuments: docsLoaded,
+                                startAfter: startAfter,
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 );
               },
               query: FirebaseFirestore.instance
@@ -146,17 +158,22 @@ class DetailsScreenWithPositionSaved extends HookWidget {
   Widget build(BuildContext context) {
     final pageController =
         usePageController(initialPage: index, keepPage: true);
-
-    return SizedBox(
-      height: 500,
-      child: PaginateFirestore(
+    print(index);
+    return Scaffold(
+      appBar: AppBar(),
+      body: PaginateFirestore(
         itemsPerPage: 5,
         //* ----------------------------------------------
-        itemBuilderType: PaginateBuilderType.pageViewStartAfter,
+        itemBuilderType: PaginateType.pageViewStartAfter,
         pageController: pageController,
         startAfterDocument: startAfter,
         prefixDocuments: prefixDocuments,
         //* ----------------------------------------------
+
+        //* You can see here, that when you scroll up, since we already
+        // * loaded in the previous page, the load count doesn't increase
+        // * (only when you continue your journey and scroll down)
+        onLoaded: (docs) => print(docs.documentSnapshots.length),
         itemBuilder: (index, context, documentSnapshot) {
           final data = documentSnapshot.data();
           final user = User.fromJson(data!);
@@ -183,7 +200,6 @@ class DetailsScreenWithPositionSaved extends HookWidget {
         },
         query:
             FirebaseFirestore.instance.collection('users').orderBy('firstName'),
-        isLive: true,
       ),
     );
   }

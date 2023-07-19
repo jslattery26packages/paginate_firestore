@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:paginate_firestore/bloc/pagination_cubit.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:paginate_firestore/paginate_firestore.dart';
+import 'package:paginate_firestore/pagination/pagination_notifier.dart';
 
-class PageViewPaginatedSeparated extends StatelessWidget {
+class PageViewPaginatedSeparated extends HookConsumerWidget {
   const PageViewPaginatedSeparated({
     Key? key,
-    required this.loadedState,
     required this.widget,
-    required this.cubit,
   }) : super(key: key);
 
-  final PaginationLoaded loadedState;
   final PaginateFirestore widget;
-  final PaginationCubit? cubit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(paginationNotifierProvider);
+    final notifier = ref.watch(paginationNotifierProvider.notifier);
+
     final sep = widget.separatorEveryAmount + 1;
-    final docLength = loadedState.documentSnapshots.length;
+    final docLength = state.documentSnapshots.length;
     return Padding(
       padding: widget.padding,
       child: PageView.custom(
@@ -33,19 +33,19 @@ class PageViewPaginatedSeparated extends StatelessWidget {
               itemIndex = index - ((index / sep).ceil()) + 1;
             }
             if (index % sep != 0 || index == 0) {
-              if (index >= loadedState.documentSnapshots.length) {
-                cubit!.fetchPaginatedList();
+              if (index >= state.documentSnapshots.length) {
+                notifier.fetchPaginatedList();
                 return widget.bottomLoader;
               }
               return widget.itemBuilder(
                 itemIndex,
                 context,
-                loadedState.documentSnapshots[itemIndex],
+                state.documentSnapshots[itemIndex],
               );
             }
             return widget.separator;
           },
-          childCount: loadedState.hasReachedEnd
+          childCount: state.hasReachedEnd
               ? docLength + (docLength / (sep)).floor()
               : docLength + (docLength / (sep)).floor() + 1,
         ),
