@@ -158,7 +158,6 @@ class DetailsScreenWithPositionSaved extends HookWidget {
   Widget build(BuildContext context) {
     final pageController =
         usePageController(initialPage: index, keepPage: true);
-    print(index);
     return Scaffold(
       appBar: AppBar(),
       body: PaginateFirestore(
@@ -173,7 +172,7 @@ class DetailsScreenWithPositionSaved extends HookWidget {
         //* You can see here, that when you scroll up, since we already
         // * loaded in the previous page, the load count doesn't increase
         // * (only when you continue your journey and scroll down)
-        onLoaded: (docs) => print(docs.documentSnapshots.length),
+        onLoaded: (docs) {},
         itemBuilder: (index, context, documentSnapshot) {
           final data = documentSnapshot.data();
           final user = User.fromJson(data!);
